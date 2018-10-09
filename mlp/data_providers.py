@@ -188,19 +188,32 @@ class MetOfficeDataProvider(DataProvider):
             'Data file does not exist at expected path: ' + data_path
         )
         # load raw data from text file
-        # ...
+        pre_data = np.loadtxt(data_path, skiprows=3)
+        data = pre_data[:,2:]
         # filter out all missing datapoints and flatten to a vector
-        # ...
+        data_index = (data > -99.9)
+        print(data_index)
+        data = data[data_index]
+        data = data.reshape(data.size)
+        
         # normalise data to zero mean, unit standard deviation
-        # ...
+        data = (data - np.mean(data))/np.std(data)
+        print(np.mean(data),np.std(data))
+        
         # convert from flat sequence to windowed data
-        # ...
+        data_window = data[data.size%window_size:]
+        data_window = data_window.reshape(data_window.size//window_size, window_size)
+        if shuffle_order == True:
+            data_window = data_window.shuffle()
+        
         # inputs are first (window_size - 1) entries in windows
-        # inputs = ...
+        inputs = data_window[:, :- 1]
+        
         # targets are last entry in windows
-        # targets = ...
+        targets = data_window[:, -1]
+        
         # initialise base class with inputs and targets arrays
-        # super(MetOfficeDataProvider, self).__init__(
-        #     inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
+        super(MetOfficeDataProvider, self).__init__(
+            inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
     def __next__(self):
             return self.next()
