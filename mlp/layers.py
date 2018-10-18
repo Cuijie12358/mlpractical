@@ -353,3 +353,62 @@ class RadialBasisFunctionLayer(Layer):
 
     def __repr__(self):
         return 'RadialBasisFunctionLayer(grid_dim={0})'.format(self.grid_dim)
+import numpy as np
+from mlp.layers import Layer
+
+class TanhLayer(Layer):
+    """Layer implementing an element-wise hyperbolic tangent transformation."""
+
+    def fprop(self, inputs):
+        """Forward propagates activations through the layer transformation.
+
+        For inputs `x` and outputs `y` this corresponds to `y = tanh(x)`.
+        """
+        a = np.exp(inputs)
+        b = np.exp(-inputs)
+        y = (a - b)/(a + b)
+        return y
+
+
+    def bprop(self, inputs, outputs, grads_wrt_outputs):
+        """Back propagates gradients through a layer.
+
+        Given gradients with respect to the outputs of the layer calculates the
+        gradients with respect to the layer inputs.
+        """
+        return (1 - outputs**2) * grads_wrt_outputs
+
+        
+
+    def __repr__(self):
+        return 'TanhLayer'
+    
+
+class ReluLayer(Layer):
+    """Layer implementing an element-wise rectified linear transformation."""
+
+    def fprop(self, inputs):
+        """Forward propagates activations through the layer transformation.
+
+        For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
+        """
+        zeros = np.zeros(np.shape(inputs))
+        outputs = np.array([zeros,inputs])
+        outputs = np.max(outputs, axis = 0)
+        return outputs
+
+    def bprop(self, inputs, outputs, grads_wrt_outputs):
+        """Back propagates gradients through a layer.
+
+        Given gradients with respect to the outputs of the layer calculates the
+        gradients with respect to the layer inputs.
+        """
+        zeros = np.zeros(np.shape(inputs))
+        dx = np.array([zeros,inputs])
+        dx = np.max(dx, axis = 0)
+        dx_index = dx > 0
+        dx[dx_index] = 1
+        return dx * grads_wrt_outputs
+
+    def __repr__(self):
+        return 'ReluLayer'
