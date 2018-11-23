@@ -29,7 +29,7 @@ def get_args():
     parser.add_argument('--num_layers', nargs="?", type=int, default=4,
                         help='Number of convolutional layers in the network (excluding '
                              'dimensionality reduction layers)')
-    parser.add_argument('--num_filters', nargs="?", type=int, default=4,
+    parser.add_argument('--num_filters', nargs="?", type=int, default=64,
                         help='Number of convolutional filters per convolutional layer in the network (excluding '
                              'dimensionality reduction layers)')
     parser.add_argument('--num_epochs', nargs="?", type=int, default=100, help='The experiment\'s epoch budget')
@@ -39,6 +39,8 @@ def get_args():
                         help='A flag indicating whether we will use GPU acceleration or not')
     parser.add_argument('--weight_decay_coefficient', nargs="?", type=float, default=1e-05,
                         help='Weight decay to use for Adam')
+    parser.add_argument('--kernel_size', nargs="?", type=int, default=3, help='kernel_size for convolutional layers')
+    parser.add_argument('--padding_size', nargs="?", type=int, default=1, help='padding_size')
     args = parser.parse_args()
     print(args)
     return args

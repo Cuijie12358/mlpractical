@@ -15,6 +15,7 @@ respect to the layer parameters.
 import numpy as np
 import mlp.initialisers as init
 from mlp import DEFAULT_SEED
+from mlp import im2col
 
 
 class Layer(object):
@@ -448,7 +449,16 @@ class ConvolutionalLayer(LayerWithParameters):
         Returns:
             outputs: Array of layer outputs of shape (batch_size, num_output_channels, output_height, output_width).
         """
-        raise NotImplementedError
+        batch_size = inputs.shape[0]
+        inputs_col = im2col.im2col_indices(inputs,self.kernel_height,self.kernel_width,padding=0,stride = 1)
+        kernel_col = im2col.im2col_indices(self.kernels[:,:,::-1,::-1],self.kernel_height,self.kernel_width,padding=0,stride = 1)
+        outputs_col = np.dot(kernel_col.T,inputs_col)
+        output_shape = (batch_size,self.num_output_channels,self.input_height - self.kernel_height + 1,self.input_width - self.kernel_width + 1)
+        bias = np.repeat(np.arange(2),outputs_col.shape[1]).reshape(2,-1)
+        output = im2col.col2im_indices(outputs_col+ bias, output_shape, 1, 1, padding=0, stride=1)
+        return output
+
+
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
@@ -467,7 +477,15 @@ class ConvolutionalLayer(LayerWithParameters):
             Array of gradients with respect to the layer inputs of shape
             (batch_size, num_input_channels, input_height, input_width).
         """
-        raise NotImplementedError
+
+        grads_col = im2col.im2col_indices(grads_wrt_outputs,self.kernel_height,self.kernel_width,padding=self.kernel_height - 1, stride = 1)
+        kernels_shuffle = np.transpose(self.kernels,(1,0,2,3))
+        kernel_col = im2col.im2col_indices(kernels_shuffle,kernels_shuffle.shape[2],kernels_shuffle.shape[3],padding=0,stride = 1)
+
+        outputs_col = np.dot(grads_col.T, kernel_col)
+        outputs_im = im2col.col2im_indices(outputs_col.T,inputs.shape,1,1,0,1)
+        return outputs_im
+
 
     def grads_wrt_params(self, inputs, grads_wrt_outputs):
         """Calculates gradients with respect to layer parameters.
@@ -480,7 +498,20 @@ class ConvolutionalLayer(LayerWithParameters):
             list of arrays of gradients with respect to the layer parameters
             `[grads_wrt_kernels, grads_wrt_biases]`.
         """
-        raise NotImplementedError
+        inputs_trans = np.transpose(inputs,(1,0,2,3))
+        inputs_col = im2col.im2col_indices(inputs_trans,grads_wrt_outputs.shape[2],grads_wrt_outputs.shape[3],padding=0, stride = 1)
+        grads_col = im2col.im2col_indices(np.transpose(grads_wrt_outputs,(1,0,2,3)),grads_wrt_outputs.shape[2],grads_wrt_outputs.shape[3],padding=0,stride = 1)
+
+
+
+        outputs_col = np.dot(inputs_col.T, grads_col)[::-1]
+        outputs_col = np.concatenate(np.split(outputs_col,self.kernel_width*self.kernel_height,axis=0),axis=1)
+        outputs_im = im2col.col2im_indices(outputs_col[::-1,:],self.kernels_shape,1,1,0,1)
+        grad_b = np.sum(np.reshape(np.transpose(grads_wrt_outputs,(1,0,2,3)),(2,-1)),axis = 1)
+
+        return outputs_im,grad_b
+
+
 
     def params_penalty(self):
         """Returns the parameter dependent penalty term for this layer.
@@ -541,7 +572,16 @@ class MaxPooling2DLayer(Layer):
         :return: The output of the max pooling operation. Assuming a stride=2 the output should have a shape of
         (b, c, (input_height - size)/stride + 1, (input_width - size)/stride + 1)
         """
-        raise NotImplementedError
+        output_shape = (inputs.shape[0], inputs.shape[1],
+                        (self.input_height - self.size)//self.stride + 1, (self.input_width - self.size)//self.stride + 1)
+        inputs_col = im2col.im2col_indices(inputs,self.size,self.size,padding=0,stride = 2)
+        # split the channels
+        inputs_shuffle = np.concatenate(np.split(inputs_col,output_shape[1],axis=0),axis=1)
+        # true inputs
+        inputs_max = np.max(inputs_shuffle,axis=0)
+        outputs_col = inputs_max.reshape((-1,2))
+        outputs = im2col.col2im_indices(outputs_col,output_shape,output_shape[2],output_shape[3],0,2)
+        return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """
@@ -552,7 +592,12 @@ class MaxPooling2DLayer(Layer):
         :param grads_wrt_outputs: The grads wrt to the outputs, of shape equal to that of the outputs.
         :return: grads_wrt_input, of shape equal to the inputs.
         """
-        raise NotImplementedError
+
+        outputs_col = np.tile(np.repeat(outputs,self.size,axis=3),self.size).reshape(inputs.shape)
+        bool_array = 1.0*(inputs >= outputs_col)
+        grad_repeat = np.tile(np.repeat(grads_wrt_outputs,self.size,axis=3),self.size).reshape(inputs.shape)
+        return grad_repeat*bool_array
+
 
 
 class ReluLayer(Layer):

@@ -85,7 +85,7 @@ class FCCNetwork(nn.Module):
 
 
 class ConvolutionalNetwork(nn.Module):
-    def __init__(self, input_shape, dim_reduction_type, num_output_classes, num_filters, num_layers, use_bias=False):
+    def __init__(self, input_shape, dim_reduction_type, num_output_classes, num_filters, num_layers, kernel_size, use_bias=False):
         """
         Initializes a convolutional network module object.
         :param input_shape: The shape of the inputs going in to the network.
@@ -105,6 +105,7 @@ class ConvolutionalNetwork(nn.Module):
         self.dim_reduction_type = dim_reduction_type
         # initialize a module dict, which is effectively a dictionary that can collect layers and integrate them into pytorch
         self.layer_dict = nn.ModuleDict()
+        self.kernel_size = kernel_size
         # build the network
         self.build_module()
 
@@ -120,7 +121,7 @@ class ConvolutionalNetwork(nn.Module):
         for i in range(self.num_layers):  # for number of layers times
             self.layer_dict['conv_{}'.format(i)] = nn.Conv2d(in_channels=out.shape[1],
                                                              # add a conv layer in the module dict
-                                                             kernel_size=3,
+                                                             kernel_size=self.kernel_size,
                                                              out_channels=self.num_filters, padding=1,
                                                              bias=self.use_bias)
 
@@ -129,7 +130,7 @@ class ConvolutionalNetwork(nn.Module):
             print(out.shape)
             if self.dim_reduction_type == 'strided_convolution':  # if dim reduction is strided conv, then add a strided conv
                 self.layer_dict['dim_reduction_strided_conv_{}'.format(i)] = nn.Conv2d(in_channels=out.shape[1],
-                                                                                       kernel_size=3,
+                                                                                       kernel_size=self.kernel_size,
                                                                                        out_channels=out.shape[1],
                                                                                        padding=1,
                                                                                        bias=self.use_bias, stride=2,
@@ -140,7 +141,7 @@ class ConvolutionalNetwork(nn.Module):
                 out = F.relu(out)  # apply relu to the output
             elif self.dim_reduction_type == 'dilated_convolution':  # if dim reduction is dilated conv, then add a dilated conv, using an arbitrary dilation rate of i + 2 (so it gets smaller as we go, you can choose other dilation rates should you wish to do it.)
                 self.layer_dict['dim_reduction_dilated_conv_{}'.format(i)] = nn.Conv2d(in_channels=out.shape[1],
-                                                                                       kernel_size=3,
+                                                                                       kernel_size=self.kernel_size,
                                                                                        out_channels=out.shape[1],
                                                                                        padding=1,
                                                                                        bias=self.use_bias, stride=1,
@@ -150,11 +151,11 @@ class ConvolutionalNetwork(nn.Module):
                 out = F.relu(out)  # apply relu on output
 
             elif self.dim_reduction_type == 'max_pooling':
-                self.layer_dict['dim_reduction_max_pool_{}'.format(i)] = nn.MaxPool2d(2, padding=1)
+                self.layer_dict['dim_reduction_max_pool_{}'.format(i)] = nn.MaxPool2d(2, padding=1, stride=1)
                 out = self.layer_dict['dim_reduction_max_pool_{}'.format(i)](out)
 
             elif self.dim_reduction_type == 'avg_pooling':
-                self.layer_dict['dim_reduction_avg_pool_{}'.format(i)] = nn.AvgPool2d(2, padding=1)
+                self.layer_dict['dim_reduction_avg_pool_{}'.format(i)] = nn.AvgPool2d(2, padding=1, stride=1)
                 out = self.layer_dict['dim_reduction_avg_pool_{}'.format(i)](out)
 
             print(out.shape)
