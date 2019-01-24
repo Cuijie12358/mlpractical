@@ -1,6 +1,8 @@
 #dropbox stuff
 *.dropbox*
-
+.DS_Store
+mlp/.DS_Store
+mlp/.idea/workspace.xml
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -60,6 +62,3 @@ docs/_build/
 target/
 report/
 
-.DS_Store
-mlp/.DS_Store
-mlp/.idea/workspace.xml
